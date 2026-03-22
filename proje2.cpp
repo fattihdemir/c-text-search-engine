@@ -1,25 +1,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <locale.h>
-#include <windows.h> // Terminali UTF-8 yapmak için şart
+#include <windows.h>
 
 #define MAX 1000
+// Terminal için Kalın ve Sarı renk kodu
+#define RENK_KALIN_SARI "\033[1;33m"
+#define RENK_SIFIR      "\033[0m"
 
-// UTF-8 uyumlu küçük harf dönüşümü (Basit ASCII korumalı)
 void metniKucukYap(char *str) {
     for (int i = 0; str[i]; i++) {
-        if (str[i] >= 'A' && str[i] <= 'Z') {
-            str[i] = str[i] + 32;
-        }
+        if (str[i] >= 'A' && str[i] <= 'Z') str[i] += 32;
     }
 }
 
 int main() {
-    // 1. ADIM: Terminali Giriş ve Çıkışta UTF-8 (65001) moduna al
     SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
-    
-    // 2. ADIM: Yerel ayarları UTF-8 destekli yap
     setlocale(LC_ALL, ".UTF8");
 
     FILE *dosya, *rapor;
@@ -27,25 +24,18 @@ int main() {
 
     while (1) {
         int satirNo = 0, toplam = 0;
-
-        printf("\n>>> Dosya adini girin (orn: metin.txt): "); 
-        scanf("%s", dosyaAdi);
-        printf(">>> Aranacak kelime: "); 
-        scanf("%s", kelime);
+        printf("\n>>> Dosya adini girin: "); scanf("%s", dosyaAdi);
+        printf(">>> Aranacak kelime: "); scanf("%s", kelime);
         
+        char arananOrijinal[50];
+        strcpy(arananOrijinal, kelime);
         metniKucukYap(kelime);
 
         dosya = fopen(dosyaAdi, "r");
-        if (!dosya) { 
-            printf("[HATA] %s dosyasi acilamadi!\n", dosyaAdi); 
-            continue; 
-        }
+        if (!dosya) { printf("[HATA] Dosya acilamadi!\n"); continue; }
 
-        // 3. ADIM: Rapor dosyasını UTF-8 olarak aç/yaz
         rapor = fopen("rapor.txt", "a");
-        
-        fprintf(rapor, "\n--- YENI ARAMA ---\n");
-        fprintf(rapor, "Dosya: %s | Kelime: %s\n", dosyaAdi, kelime);
+        fprintf(rapor, "\n--- ARAMA: %s | Kelime: %s ---\n", dosyaAdi, arananOrijinal);
 
         while (fgets(satir, MAX, dosya)) {
             satirNo++;
@@ -53,22 +43,33 @@ int main() {
             strcpy(temp, satir);
             metniKucukYap(temp);
 
-            if (strstr(temp, kelime)) {
+            char *bulunanYer = strstr(temp, kelime);
+            if (bulunanYer) {
                 toplam++;
-                // Terminale ve dosyaya yaz
-                printf("Satir %d: %s", satirNo, satir);
-                fprintf(rapor, "Satir %d: %s", satirNo, satir);
+                int idx = (int)(bulunanYer - temp);
+                
+                // TERMINAL CIKTISI (Kalın ve Sarı)
+                printf("Satir %d: ", satirNo);
+                for(int i = 0; i < idx; i++) printf("%c", satir[i]);
+                printf(RENK_KALIN_SARI); // Parlak kalın sarıyı başlat
+                for(int i = 0; i < strlen(kelime); i++) printf("%c", satir[idx + i]);
+                printf(RENK_SIFIR); // Rengi sıfırla
+                printf("%s", &satir[idx + strlen(kelime)]);
+
+                // RAPOR DOSYASI CIKTISI
+                // .txt'de kalınlık olmadığı için kelimeyi [ ] içine alarak belirginleştiriyoruz
+                fprintf(rapor, "Satir %d: ", satirNo);
+                for(int i = 0; i < idx; i++) fputc(satir[i], rapor);
+                fprintf(rapor, "[%s]", arananOrijinal); // Kelimeyi paranteze al
+                fprintf(rapor, "%s", &satir[idx + strlen(kelime)]);
             }
         }
 
+        printf("\n>>> Toplam %d eslesme.\n", toplam);
         fprintf(rapor, "Toplam Eslesme: %d\n", toplam);
-        printf("\n>>> Toplam %d eslesme bulundu.\n", toplam);
+        fclose(dosya); fclose(rapor);
 
-        fclose(dosya);
-        fclose(rapor);
-
-        printf("\nYeni arama? (e/h): "); 
-        scanf(" %c", &devam);
+        printf("\nYeni arama? (e/h): "); scanf(" %c", &devam);
         if (devam == 'h' || devam == 'H') break;
     }
     return 0;
