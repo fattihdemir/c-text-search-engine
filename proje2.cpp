@@ -1,102 +1,75 @@
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <locale.h>
-#include <windows.h> 
+#include <windows.h> // Terminali UTF-8 yapmak için şart
 
 #define MAX 1000
 
-unsigned char turkceKucukHarf(unsigned char c) {
-    if (c == 'I') return 253; 
-    if (c == 'İ') return 'i';
-    if (c == 'Ş') return 254; 
-    if (c == 'Ğ') return 240; 
-    if (c == 'Ü') return 252; 
-    if (c == 'Ö') return 246; 
-    if (c == 'Ç') return 231; 
-    if (c >= 'A' && c <= 'Z') return c + 32;
-    return c;
-}
-
-void metniKucukHarfYap(char *str) {
+// UTF-8 uyumlu küçük harf dönüşümü (Basit ASCII korumalı)
+void metniKucukYap(char *str) {
     for (int i = 0; str[i]; i++) {
-        str[i] = (char)turkceKucukHarf((unsigned char)str[i]);
+        if (str[i] >= 'A' && str[i] <= 'Z') {
+            str[i] = str[i] + 32;
+        }
     }
 }
 
 int main() {
-    SetConsoleCP(1254);
-    SetConsoleOutputCP(1254);
-    setlocale(LC_ALL, "Turkish");
+    // 1. ADIM: Terminali Giriş ve Çıkışta UTF-8 (65001) moduna al
+    SetConsoleCP(65001);
+    SetConsoleOutputCP(65001);
+    
+    // 2. ADIM: Yerel ayarları UTF-8 destekli yap
+    setlocale(LC_ALL, ".UTF8");
 
     FILE *dosya, *rapor;
     char satir[MAX], kelime[50], dosyaAdi[50], devam;
 
     while (1) {
-        int satirNo = 0, toplamTekrar = 0;
+        int satirNo = 0, toplam = 0;
 
-        printf("\n>>> Dosya adini giriniz (orn: metin.txt): ");
+        printf("\n>>> Dosya adini girin (orn: metin.txt): "); 
         scanf("%s", dosyaAdi);
-
-        printf(">>> Aranacak kelimeyi giriniz: ");
+        printf(">>> Aranacak kelime: "); 
         scanf("%s", kelime);
-
-        metniKucukHarfYap(kelime);
+        
+        metniKucukYap(kelime);
 
         dosya = fopen(dosyaAdi, "r");
-        if (dosya == NULL) {
-            printf("\n[HATA] %s dosyasi bulunamadi! Lutfen dosya adini kontrol edin.\n", dosyaAdi);
-            continue;
+        if (!dosya) { 
+            printf("[HATA] %s dosyasi acilamadi!\n", dosyaAdi); 
+            continue; 
         }
 
+        // 3. ADIM: Rapor dosyasını UTF-8 olarak aç/yaz
         rapor = fopen("rapor.txt", "a");
-        if (rapor == NULL) {
-            printf("\n[HATA] Rapor dosyasi olusturulamadi!\n");
-            fclose(dosya);
-            continue;
-        }
-
-        fprintf(rapor, "\n--- ARAMA SONUCU (%s) ---\n", dosyaAdi);
-        fprintf(rapor, "Aranan Kelime: %s\n", kelime);
-        printf("\nBulunan Satirlar:\n-----------------\n");
+        
+        fprintf(rapor, "\n--- YENI ARAMA ---\n");
+        fprintf(rapor, "Dosya: %s | Kelime: %s\n", dosyaAdi, kelime);
 
         while (fgets(satir, MAX, dosya)) {
             satirNo++;
-            char tempSatir[MAX];
-            
-            strcpy(tempSatir, satir);
-            metniKucukHarfYap(tempSatir);
+            char temp[MAX];
+            strcpy(temp, satir);
+            metniKucukYap(temp);
 
-            char *ptr = tempSatir;
-            int satirdaBulundu = 0;
-
-            while ((ptr = strstr(ptr, kelime)) != NULL) {
-                toplamTekrar++;
-                satirdaBulundu = 1;
-                ptr += strlen(kelime); 
-            }
-
-            if (satirdaBulundu) {
+            if (strstr(temp, kelime)) {
+                toplam++;
+                // Terminale ve dosyaya yaz
                 printf("Satir %d: %s", satirNo, satir);
                 fprintf(rapor, "Satir %d: %s", satirNo, satir);
             }
         }
 
-        printf("-----------------\n");
-        printf("Toplam %d adet eslesme bulundu.\n", toplamTekrar);
-        fprintf(rapor, "Toplam Sonuc: %d\n", toplamTekrar);
+        fprintf(rapor, "Toplam Eslesme: %d\n", toplam);
+        printf("\n>>> Toplam %d eslesme bulundu.\n", toplam);
 
         fclose(dosya);
         fclose(rapor);
 
-        printf("\nYeni arama yapmak ister misiniz? (e/h): ");
+        printf("\nYeni arama? (e/h): "); 
         scanf(" %c", &devam);
-
-        if (devam == 'h' || devam == 'H') {
-            printf("Programdan cikiliyor...\n");
-            break;
-        }
+        if (devam == 'h' || devam == 'H') break;
     }
-
     return 0;
 }
