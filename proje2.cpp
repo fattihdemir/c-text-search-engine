@@ -1,93 +1,99 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <locale.h>
+#include <windows.h> 
 
 #define MAX 1000
 
-// Küçük harfe çevirme
+unsigned char turkceKucukHarf(unsigned char c) {
+    if (c == 'I') return 253; 
+    if (c == 'Ä°') return 'i';
+    if (c == 'Åž') return 254; 
+    if (c == 'Äž') return 240; 
+    if (c == 'Ãœ') return 252; 
+    if (c == 'Ã–') return 246; 
+    if (c == 'Ã‡') return 231; 
+    if (c >= 'A' && c <= 'Z') return c + 32;
+    return c;
+}
 
-void kucukHarfYap(char *str) {
-	int i;
-    for(i = 0; str[i]; i++) {
-        str[i] = tolower(str[i]);
+void metniKucukHarfYap(char *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = (char)turkceKucukHarf((unsigned char)str[i]);
     }
 }
 
-int main() { 
+int main() {
+    SetConsoleCP(1254);
+    SetConsoleOutputCP(1254);
+    setlocale(LC_ALL, "Turkish");
 
     FILE *dosya, *rapor;
-    char satir[MAX];
-    char kelime[50];
-    char dosyaAdi[50];
-    char devam;
+    char satir[MAX], kelime[50], dosyaAdi[50], devam;
 
-    while(1) {
+    while (1) {
+        int satirNo = 0, toplamTekrar = 0;
 
-        int satirNo = 0;
-        int toplamTekrar = 0;
-
-        printf("\nDosya adini gir: ");
+        printf("\n>>> Dosya adini giriniz (orn: metin.txt): ");
         scanf("%s", dosyaAdi);
 
-        printf("Aranacak kelimeyi gir: ");
-        scanf("%49s", kelime);
+        printf(">>> Aranacak kelimeyi giriniz: ");
+        scanf("%s", kelime);
 
-        // küçük harf yap
-        kucukHarfYap(kelime);
+        metniKucukHarfYap(kelime);
 
         dosya = fopen(dosyaAdi, "r");
-
-        if(dosya == NULL) {
-            printf("Dosya acilamadi!\n");
+        if (dosya == NULL) {
+            printf("\n[HATA] %s dosyasi bulunamadi! Lutfen dosya adini kontrol edin.\n", dosyaAdi);
             continue;
         }
 
-        // Rapor dosyasý oluþtur
-        rapor = fopen("rapor.txt", "a"); // a = ekleme modu
+        rapor = fopen("rapor.txt", "a");
+        if (rapor == NULL) {
+            printf("\n[HATA] Rapor dosyasi olusturulamadi!\n");
+            fclose(dosya);
+            continue;
+        }
 
-        fprintf(rapor, "\n===== YENI ARAMA =====\n");
-        fprintf(rapor, "Dosya: %s\nKelime: %s\n\n", dosyaAdi, kelime);
+        fprintf(rapor, "\n--- ARAMA SONUCU (%s) ---\n", dosyaAdi);
+        fprintf(rapor, "Aranan Kelime: %s\n", kelime);
+        printf("\nBulunan Satirlar:\n-----------------\n");
 
-        printf("\nKelimenin gectigi satirlar:\n");
-        fprintf(rapor, "Kelimenin gectigi satirlar:\n");
-
-        while(fgets(satir, MAX, dosya)) {
-        	satir[strcspn(satir, "\n")] = '\0';
-
+        while (fgets(satir, MAX, dosya)) {
             satirNo++;
+            char tempSatir[MAX];
+            
+            strcpy(tempSatir, satir);
+            metniKucukHarfYap(tempSatir);
 
-            char temp[MAX];
-            strcpy(temp, satir);
+            char *ptr = tempSatir;
+            int satirdaBulundu = 0;
 
-            kucukHarfYap(temp);
-
-            char *ptr = temp;
-            int bulundu = 0;
-
-            while((ptr = strstr(ptr, kelime)) != NULL) {
+            while ((ptr = strstr(ptr, kelime)) != NULL) {
                 toplamTekrar++;
-                bulundu = 1;
-                ptr++;
+                satirdaBulundu = 1;
+                ptr += strlen(kelime); 
             }
 
-            if(bulundu) {
+            if (satirdaBulundu) {
                 printf("Satir %d: %s", satirNo, satir);
                 fprintf(rapor, "Satir %d: %s", satirNo, satir);
             }
         }
 
-        printf("\nToplam tekrar sayisi: %d\n", toplamTekrar);
-        fprintf(rapor, "\nToplam tekrar sayisi: %d\n", toplamTekrar);
+        printf("-----------------\n");
+        printf("Toplam %d adet eslesme bulundu.\n", toplamTekrar);
+        fprintf(rapor, "Toplam Sonuc: %d\n", toplamTekrar);
 
         fclose(dosya);
         fclose(rapor);
 
-        // tekrar çalýþtýrma
-        printf("\nTekrar arama yapmak ister misin? (e/h): ");
+        printf("\nYeni arama yapmak ister misiniz? (e/h): ");
         scanf(" %c", &devam);
 
-        if(devam == 'h' || devam == 'H') {
-            printf("Program sonlandirildi.\n");
+        if (devam == 'h' || devam == 'H') {
+            printf("Programdan cikiliyor...\n");
             break;
         }
     }
