@@ -4,17 +4,19 @@
 #include <windows.h>
 
 #define MAX 1000
-// Terminal iÃ§in KalÄ±n ve SarÄ± renk kodu
-#define RENK_KALIN_SARI "\033[1;33m"
-#define RENK_SIFIR      "\033[0m"
+// Renk Kodlarý
+#define RENK_SARI  "\033[1;33m"
+#define RENK_SIFIR "\033[0m"
 
 void metniKucukYap(char *str) {
-    for (int i = 0; str[i]; i++) {
+	int i;
+    for (i = 0; str[i]; i++) {
         if (str[i] >= 'A' && str[i] <= 'Z') str[i] += 32;
     }
 }
 
 int main() {
+    // türkçe karakterler için terminali UTF-8 moduna alýyoruz 
     SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
     setlocale(LC_ALL, ".UTF8");
@@ -24,11 +26,12 @@ int main() {
 
     while (1) {
         int satirNo = 0, toplam = 0;
+
         printf("\n>>> Dosya adini girin: "); scanf("%s", dosyaAdi);
         printf(">>> Aranacak kelime: "); scanf("%s", kelime);
         
         char arananOrijinal[50];
-        strcpy(arananOrijinal, kelime);
+        strcpy(arananOrijinal, kelime); // Ekranda göstermek için orijinal hali
         metniKucukYap(kelime);
 
         dosya = fopen(dosyaAdi, "r");
@@ -36,6 +39,8 @@ int main() {
 
         rapor = fopen("rapor.txt", "a");
         fprintf(rapor, "\n--- ARAMA: %s | Kelime: %s ---\n", dosyaAdi, arananOrijinal);
+
+        printf("\nSonuclar:\n");
 
         while (fgets(satir, MAX, dosya)) {
             satirNo++;
@@ -46,28 +51,34 @@ int main() {
             char *bulunanYer = strstr(temp, kelime);
             if (bulunanYer) {
                 toplam++;
-                int idx = (int)(bulunanYer - temp);
                 
-                // TERMINAL CIKTISI (KalÄ±n ve SarÄ±)
+                // --- TERMINALDE SADECE KELIMEYI RENKLI YAZDIRMA ---
+                int baslangicIndeksi = (int)(bulunanYer - temp);
+                
                 printf("Satir %d: ", satirNo);
-                for(int i = 0; i < idx; i++) printf("%c", satir[i]);
-                printf(RENK_KALIN_SARI); // Parlak kalÄ±n sarÄ±yÄ± baÅŸlat
-                for(int i = 0; i < strlen(kelime); i++) printf("%c", satir[idx + i]);
-                printf(RENK_SIFIR); // Rengi sÄ±fÄ±rla
-                printf("%s", &satir[idx + strlen(kelime)]);
+                
+                // Kelimeye kadar olan kýsmý yazdýr
+                int i;
+                for(i = 0; i < baslangicIndeksi; i++) printf("%c", satir[i]);
+                
+                // Sadece kelimeyi SARI yazdýr
+                printf(RENK_SARI);
+                for(i = 0; i < strlen(kelime); i++) printf("%c", satir[baslangicIndeksi + i]);
+                printf(RENK_SIFIR);
+                
+                //  Kelimeden sonrasýný yazdýr
+                printf("%s", &satir[baslangicIndeksi + strlen(kelime)]);
 
-                // RAPOR DOSYASI CIKTISI
-                // .txt'de kalÄ±nlÄ±k olmadÄ±ÄŸÄ± iÃ§in kelimeyi [ ] iÃ§ine alarak belirginleÅŸtiriyoruz
-                fprintf(rapor, "Satir %d: ", satirNo);
-                for(int i = 0; i < idx; i++) fputc(satir[i], rapor);
-                fprintf(rapor, "[%s]", arananOrijinal); // Kelimeyi paranteze al
-                fprintf(rapor, "%s", &satir[idx + strlen(kelime)]);
+                // --- RAPORA NORMAL YAZDIRMA ---
+                fprintf(rapor, "Satir %d: %s", satirNo, satir);
             }
         }
 
-        printf("\n>>> Toplam %d eslesme.\n", toplam);
+        printf("\n>>> Toplam %d eslesme bulundu.\n", toplam);
         fprintf(rapor, "Toplam Eslesme: %d\n", toplam);
-        fclose(dosya); fclose(rapor);
+
+        fclose(dosya);
+        fclose(rapor);
 
         printf("\nYeni arama? (e/h): "); scanf(" %c", &devam);
         if (devam == 'h' || devam == 'H') break;
